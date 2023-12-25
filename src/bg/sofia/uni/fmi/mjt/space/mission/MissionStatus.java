@@ -15,4 +15,13 @@ public enum MissionStatus {
     public String toString() {
         return value;
     }
+
+    public static MissionStatus parseMissionStatus(String status) {
+        for (MissionStatus missionStatus : MissionStatus.values()) {
+            if (missionStatus.value.equalsIgnoreCase(status)) {
+                return missionStatus;
+            }
+        }
+        throw new IllegalArgumentException("Invalid mission status");
+    }
 }

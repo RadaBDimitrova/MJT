@@ -11,16 +11,14 @@ import bg.sofia.uni.fmi.mjt.space.rocket.RocketStatus;
 import javax.crypto.SecretKey;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -36,50 +34,17 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
 
     public MJTSpaceScanner(Reader missionsReader, Reader rocketsReader, SecretKey secretKey) {
         rijndael = new Rijndael(secretKey);
-        missions = new ArrayList<>();
-        rockets = new ArrayList<>();
+        missionParser(missionsReader);
+        rocketParser(rocketsReader);
 
-        try (ByteArrayOutputStream missionsOs = new ByteArrayOutputStream();
-             ByteArrayOutputStream rocketsOs = new ByteArrayOutputStream()) {
-
-            String missionsContent = readerToString(missionsReader);
-            String rocketsContent = readerToString(rocketsReader);
-
-            InputStream missionsStream = new ByteArrayInputStream(missionsContent.getBytes(StandardCharsets.UTF_16));
-            InputStream rocketsStream = new ByteArrayInputStream(rocketsContent.getBytes(StandardCharsets.UTF_16));
-
-            rijndael.decrypt(missionsStream, missionsOs);
-            rijndael.decrypt(rocketsStream, rocketsOs);
-
-            InputStream missionsBufferedReader = new ByteArrayInputStream(missionsOs.toByteArray());
-            InputStream rocketsBufferedReader = new ByteArrayInputStream(rocketsOs.toByteArray());
-
-            missionParser(missionsBufferedReader); //throws cipherException
-            rocketsParser(rocketsBufferedReader);
-
-        } catch (IOException e) {
-            throw new UncheckedIOException("Error while setting up in constructor", e);
-        } catch (CipherException e) {
-            throw new RuntimeException("Error during decryption", e);
-        }
     }
 
-    private String readerToString(Reader reader) throws IOException {
-        try (BufferedReader bufferedReader = new BufferedReader(reader)) {
-            StringBuilder content = new StringBuilder();
+    private void missionParser(Reader reader) {
+        missions = new ArrayList<>();
+        int ctr = 1;
+        try (var bufferedReader = new BufferedReader(reader)) {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
-                content.append(line).append(System.lineSeparator());
-            }
-            return content.toString();
-        }
-    }
-
-    private void missionParser(InputStream bufferedReader) {
-        int ctr = 1;
-        String line;
-        try (var reader = new BufferedReader(new InputStreamReader(bufferedReader))) {
-            while ((line = reader.readLine()) != null) {
                 if (ctr != 1) {
                     Mission current = Mission.of(line);
                     missions.add(current);
@@ -91,11 +56,12 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
         }
     }
 
-    private void rocketsParser(InputStream bufferedReader) {
+    private void rocketParser(Reader reader) {
+        rockets = new ArrayList<>();
         int ctr = 1;
-        String line;
-        try (var reader = new BufferedReader(new InputStreamReader(bufferedReader))) {
-            while ((line = reader.readLine()) != null) {
+        try (var bufferedReader = new BufferedReader(reader)) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
                 if (ctr != 1) {
                     Rocket current = Rocket.of(line);
                     rockets.add(current);
@@ -144,7 +110,10 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
     @Override
     public Map<String, Collection<Mission>> getMissionsPerCountry() {
         return missions.stream()
-                .collect(Collectors.groupingBy(Mission::location, Collectors.toCollection(ArrayList::new)));
+                .collect(Collectors.groupingBy(mission -> Arrays.stream(mission.location()
+                                .substring(1, mission.location().length() - 1)
+                                .split(",")).toList().getLast().stripLeading(),
+                        Collectors.toCollection(ArrayList::new)));
     }
 
     @Override
@@ -183,7 +152,8 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
                 .filter(mission -> mission.missionStatus() == MissionStatus.SUCCESS &&
                         mission.date().isAfter(from) && mission.date().isBefore(to))
                 .collect(Collectors.groupingBy(Mission::company, Collectors.collectingAndThen(
-                        Collectors.groupingBy(Mission::location, Collectors.counting()),
+                        Collectors.groupingBy(mission -> mission.location()
+                                .substring(1, mission.location().length() - 1), Collectors.counting()),
                         map -> map.entrySet().stream()
                                 .max(Map.Entry.comparingByValue())
                                 .map(Map.Entry::getKey)
@@ -246,7 +216,7 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
         if (mostReliableRocket.isPresent()) {
             try {
                 rijndael.encrypt(new ByteArrayInputStream(mostReliableRocket.toString()
-                        .getBytes(StandardCharsets.UTF_16)), outputStream);
+                        .getBytes(StandardCharsets.UTF_8)), outputStream);
             } catch (CipherException e) {
                 throw new CipherException("Encryption failed", e);
             }
@@ -255,7 +225,9 @@ public class MJTSpaceScanner implements SpaceScannerAPI {
 
     private double calculateReliability(Rocket rocket, LocalDate from, LocalDate to) {
         double totalMissions = getAllMissions().stream()
-                .filter(mission -> mission.detail().rocketName().equals(rocket.name()))
+                .filter(mission -> mission.detail().rocketName().equals(rocket.name())
+                        && mission.date().isAfter(from)
+                        && mission.date().isBefore(to))
                 .count();
 
         double successfulMissions = getAllMissions().stream()
