@@ -4,7 +4,6 @@ import bg.sofia.uni.fmi.mjt.exceptions.InvalidQueryException;
 import bg.sofia.uni.fmi.mjt.recipe.Recipe;
 import bg.sofia.uni.fmi.mjt.recipe.RecipeQueryArguments;
 
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -13,7 +12,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
-
 
 public class EdamamClient {
     protected static final int RESULTS_PER_PAGE = 20;
@@ -42,11 +40,8 @@ public class EdamamClient {
                 HttpResponse<String> response = getResponse(request);
                 List<Recipe> currentPageRecipes = responseParser.parseRecipes(response.body());
                 recipes.addAll(currentPageRecipes);
-
                 int pagesCount = responseParser.calculatePagesCount(response.body(), RESULTS_PER_PAGE, PAGES_TO_LOAD);
-
                 hasNextPage = currentPage < pagesCount;
-
                 if (hasNextPage) {
                     String nextLink = responseParser.parseNextLink(response.body());
                     if (nextLink != null && !nextLink.isEmpty()) {

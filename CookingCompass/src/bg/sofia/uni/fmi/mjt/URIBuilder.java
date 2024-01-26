@@ -3,7 +3,6 @@ package bg.sofia.uni.fmi.mjt;
 import java.net.URI;
 import java.util.List;
 
-
 public class URIBuilder {
     private static final String BASE_URL = "https://api.edamam.com/api/recipes/v2?type=public";
     private final StringBuilder uriBuilder;
@@ -34,7 +33,6 @@ public class URIBuilder {
         }
         return this;
     }
-
 
     public URI build() {
         if (uriBuilder.charAt(uriBuilder.length() - 1) == '&') {

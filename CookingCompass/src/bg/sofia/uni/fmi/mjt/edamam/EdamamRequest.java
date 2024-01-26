@@ -7,7 +7,6 @@ import bg.sofia.uni.fmi.mjt.recipe.RecipeQueryArguments;
 import java.net.URI;
 import java.net.http.HttpRequest;
 
-
 public class EdamamRequest implements RequestBuildingStrategy {
     private static final String APP_ID = "865bc1aa";
     private static final String APP_KEY = "5020429240aa7550faf84afbeb5ea0b9";
