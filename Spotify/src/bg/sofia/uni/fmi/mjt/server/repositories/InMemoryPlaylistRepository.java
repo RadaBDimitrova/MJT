@@ -19,26 +19,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
+
 public class InMemoryPlaylistRepository implements PlaylistRepository {
     private static final String PLAYLISTS = "playlists.txt";
     private static final String TXT = ".txt";
-    private static Map<String, Playlist> playlists = new ConcurrentHashMap<>(); //txt file name - playlist
+    private Map<String, Playlist> playlists = new ConcurrentHashMap<>();
 
     @Override
     public void addSongToPlaylist(Track song, String playlistName) {
         if (playlists.containsKey(playlistName + TXT)) {
             playlists.get(playlistName + TXT).addTrack(song);
-            savePlaylistToFile(playlistName + TXT);
+            savePlaylistToFile(playlistName);
         } else {
-            throw new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            PlaylistDoesNotExist exception =
+                    new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            logException(exception);
+            throw exception;
         }
-//        Playlist playlist = playlists.get(playlistName+TXT);
-//        if (playlist == null) {
-//            throw new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
-//        }
-//        playlists.get(playlistName+TXT).addTrack(song);
-//        playlist.addTrack(song);
-//        savePlaylistToFile(playlistName);
     }
 
     @Override
@@ -47,20 +45,23 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             playlists.get(playlistName + TXT).removeTrack(song);
             savePlaylistToFile(playlistName);
         } else {
-            throw new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            PlaylistDoesNotExist exception =
+                    new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            logException(exception);
+            throw exception;
         }
     }
 
     @Override
     public void createPlaylist(String playlistName) {
-        playlists.put(playlistName+TXT, new Playlist(playlistName, new ConcurrentHashMap<>()));
+        playlists.put(playlistName + TXT, new Playlist(playlistName, new ConcurrentHashMap<>()));
         saveNewPlaylistToPlaylistNamesFile(playlistName);
         savePlaylistToFile(playlistName);
     }
 
     @Override
     public void deletePlaylist(String playlistName) {
-        playlists.remove(playlistName+TXT);
+        playlists.remove(playlistName + TXT);
         deletePlaylistFromFile(playlistName);
         deletePlaylistFromPlaylistNamesFile(playlistName);
     }
@@ -71,7 +72,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             List<String> lines = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (!line.equals(playlistName+TXT)) {
+                if (!line.equals(playlistName + TXT)) {
                     lines.add(line);
                 }
             }
@@ -81,6 +82,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
                 writer.newLine();
             }
         } catch (IOException e) {
+            logException(e);
             throw new UncheckedIOException("Error deleting playlist from file of playlist names: " + playlistName, e);
         }
     }
@@ -90,6 +92,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         try {
             Files.delete(path);
         } catch (IOException e) {
+            logException(e);
             throw new UncheckedIOException("Error deleting file of playlist " + playlistName, e);
         }
     }
@@ -98,29 +101,34 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PLAYLISTS, true))) {
             writer.write(playlistName + TXT + System.lineSeparator());
         } catch (IOException e) {
+            logException(e);
             throw new UncheckedIOException("Error saving new playlist to file of playlist " + playlistName + TXT, e);
         }
     }
 
     @Override
     public Playlist getPlaylist(String playlistName) {
-        Playlist result = playlists.get(playlistName+TXT);
+        Playlist result = playlists.get(playlistName + TXT);
         if (result == null) {
-            throw new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            PlaylistDoesNotExist exception =
+                    new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
+            logException(exception);
+            throw exception;
         }
         return result;
     }
 
     @Override
     public void savePlaylistToFile(String playlistName) {
-        Playlist playlist = playlists.get(playlistName);
+        Playlist playlist = playlists.get(playlistName + TXT);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(playlistName + TXT))) {
             writer.write(playlist.getName() + System.lineSeparator());
-            for (Track track : playlist.getTracks().keySet()) {
+            for (Track track : playlist.getTracks().values()) {
                 writer.write(track.name() + "," + track.artist() + ","
                         + track.timesPlayed() + System.lineSeparator());
             }
         } catch (IOException e) {
+            logException(e);
             throw new UncheckedIOException("Error during saving of playlist", e);
         }
     }
@@ -130,18 +138,22 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         try (BufferedReader reader = new BufferedReader(new FileReader(playlistName + TXT))) {
             String name = reader.readLine();
             if (name == null) {
-                throw new PlaylistDoesNotExist("Playlist not found in file, name cannot be null");
+                PlaylistDoesNotExist exception =
+                        new PlaylistDoesNotExist("Playlist not found in file, name cannot be null");
+                logException(exception);
+                throw exception;
             }
-            Map<Track, Integer> tracks = new ConcurrentHashMap<>();
+            Map<String, Track> tracks = new ConcurrentHashMap<>();
             String track;
             while ((track = reader.readLine()) != null) {
                 String[] trackInfo = track.split(",");
-                tracks.put(new Track(trackInfo[0], trackInfo[1], Integer.parseInt(trackInfo[2])), 0);
+                tracks.put(trackInfo[0] + TXT, new Track(trackInfo[0], trackInfo[1], Integer.parseInt(trackInfo[2])));
             }
             Playlist playlist = new Playlist(name, tracks);
-            playlists.put(name+TXT, playlist);
+            playlists.put(name + TXT, playlist);
             return playlist;
         } catch (IOException e) {
+            logException(e);
             throw new PlaylistDoesNotExist("Error loading playlist from file with name: " + playlistName, e);
         }
     }
@@ -157,9 +169,11 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             this.playlists = playlists;
             return playlists;
         } catch (FileNotFoundException e) {
+            logException(e);
             throw new RuntimeException("Error finding files of playlists from file with playlist names", e);
         } catch (IOException e) {
-            throw new RuntimeException("Error loading playlists from file with playlist names", e);
+            logException(e);
+            throw new UncheckedIOException("Error loading playlists from file with playlist names", e);
         }
     }
 }

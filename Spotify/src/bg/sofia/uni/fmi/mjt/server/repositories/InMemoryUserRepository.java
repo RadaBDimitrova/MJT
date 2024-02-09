@@ -1,5 +1,6 @@
 package bg.sofia.uni.fmi.mjt.server.repositories;
 
+import bg.sofia.uni.fmi.mjt.server.exceptions.UserAlreadyExistsException;
 import bg.sofia.uni.fmi.mjt.server.profile.User;
 
 import java.io.BufferedReader;
@@ -13,13 +14,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
+
 public class InMemoryUserRepository implements UserRepository {
     private static final String USERS_FILE = "users.txt";
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
 
     @Override
     public User createUser(String email, String password) throws IllegalArgumentException {
-        verifyUserDoesNotExist(email); //TODO do better
+        try {
+            verifyUserDoesNotExist(email);
+        } catch (IllegalArgumentException e) {
+            logException(e);
+            throw new UserAlreadyExistsException("User with email " + email + " already exists");
+        }
         User newUser = new User(password, email);
         usersByEmail.put(email, newUser);
         saveUserToFile(newUser);
@@ -37,6 +45,7 @@ public class InMemoryUserRepository implements UserRepository {
         try (FileWriter writer = new FileWriter(USERS_FILE, true)) {
             writer.write(newUser.getEmail() + "," + newUser.getPassword() + System.lineSeparator());
         } catch (IOException e) {
+            logException(e);
             throw new UncheckedIOException("Could not save user to file", e);
         }
     }
@@ -64,7 +73,8 @@ public class InMemoryUserRepository implements UserRepository {
                 writer.newLine();
             }
         } catch (IOException e) {
-            throw new RuntimeException("Error deleting user from file of users: " + user.getEmail(), e);
+            logException(e);
+            throw new UncheckedIOException("Error deleting user from file of users: " + user.getEmail(), e);
         }
     }
 
@@ -76,7 +86,7 @@ public class InMemoryUserRepository implements UserRepository {
     @Override
     public boolean authenticateUser(String email, String password) {
         User user = getUserByEmail(email);
-        return user != null && user.authenticate(password);
+        return user != null && user.authenticate(password.hashCode());
     }
 
 }

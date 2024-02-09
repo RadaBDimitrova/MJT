@@ -11,27 +11,28 @@ public class Playlist {
     private static final String TRACK_NAME = "Track name: ";
     private static final String ARTIST = "Artist: ";
     private static final String TIMES_PLAYED = "Times played: ";
-    private String name;
-    private final Map<Track, Integer> tracks = new ConcurrentHashMap<>();
+    private static final String TXT = ".txt";
+    private final String name;
+    private final Map<String, Track> tracks = new ConcurrentHashMap<>();
 
-    public Playlist(String name, Map<Track, Integer> tracks) {
+    public Playlist(String name, Map<String, Track> tracks) {
         this.name = name;
         this.tracks.putAll(tracks);
     }
 
     public synchronized void addTrack(Track track) {
-        tracks.put(track, track.timesPlayed());
+        tracks.put(track.name() + TXT, track);
     }
 
     public synchronized void removeTrack(Track track) {
-        tracks.remove(track);
+        tracks.remove(track.name() + TXT);
     }
 
     public String getPlaylistInfo() {
         StringBuilder sb = new StringBuilder();
         sb.append(NAME).append(name).append(System.lineSeparator());
         sb.append(TRACKS).append(System.lineSeparator());
-        for (Track track : tracks.keySet()) {
+        for (Track track : tracks.values()) {
             sb.append(TRACK_NAME).append(track.name()).append(System.lineSeparator());
             sb.append(ARTIST).append(track.artist()).append(System.lineSeparator());
             sb.append(TIMES_PLAYED).append(track.timesPlayed()).append(System.lineSeparator());
@@ -43,7 +44,7 @@ public class Playlist {
         return name;
     }
 
-    public Map<Track, Integer> getTracks() {
+    public Map<String, Track> getTracks() {
         return tracks;
     }
 }

@@ -12,12 +12,13 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
+
 public class SpotifyClientHandler implements Runnable {
     private final Socket clientSocket;
     private final InMemoryUserRepository userRepository;
     private final InMemoryPlaylistRepository playlistRepository;
     private final InMemorySongRepository songRepository;
-    private final boolean loggedIn = false;
 
     public SpotifyClientHandler(Socket clientSocket, InMemoryUserRepository userRepository,
                                 InMemoryPlaylistRepository playlistRepository, InMemorySongRepository songRepository) {
@@ -35,17 +36,17 @@ public class SpotifyClientHandler implements Runnable {
         ) {
             String clientMessage;
             while ((clientMessage = reader.readLine()) != null) {
-                System.out.println("Received message: " + clientMessage);
                 String[] tokens = clientMessage.split("\\s+");
-                CommandManager.processCommand(userRepository, playlistRepository, songRepository,
-                        writer, tokens, loggedIn);
+                CommandManager.processCommand(userRepository, playlistRepository, songRepository, writer, tokens);
             }
         } catch (IOException e) {
+            logException(e);
             System.err.println("Client disconnected abruptly");
         } finally {
             try {
                 clientSocket.close();
             } catch (IOException e) {
+                logException(e);
                 System.err.println("Client failed to close connection");
             }
         }

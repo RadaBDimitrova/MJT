@@ -13,36 +13,60 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 
 public class CommandManager {
+    private static Boolean loggedIn = false;
 
     public static void processCommand(InMemoryUserRepository userRepository,
                                       InMemoryPlaylistRepository playlistRepository,
                                       InMemorySongRepository songRepository, PrintWriter writer,
-                                      String[] tokens, boolean loggedIn) {
+                                      String[] tokens) {
         String commandType = tokens[0].toLowerCase();
-        //TODO: refactor to use a map of commands
-        //logged in logic
+        if (!loggedIn) {
+            handleNotLoggedIn(userRepository, writer, tokens);
+        } else {
+            handleLoggedIn(commandType, playlistRepository, songRepository, writer, tokens);
+        }
+    }
+
+    private static void handleNotLoggedIn(InMemoryUserRepository userRepository, PrintWriter writer, String[] tokens) {
+        String commandType = tokens[0].toLowerCase();
+        if (commandType.equals("register")) {
+            registerUser(userRepository, writer, tokens);
+            loggedIn = true;
+        } else if (commandType.equals("login")) {
+            loginUser(userRepository, writer, tokens);
+            loggedIn = true;
+        } else {
+            writer.println("You need to be logged in to use this command");
+        }
+    }
+
+    private static void handleLoggedIn(String commandType, InMemoryPlaylistRepository playlistRepository,
+                                       InMemorySongRepository songRepository,
+                                       PrintWriter writer, String[] tokens) {
         switch (commandType) {
-            case "register": registerUser(userRepository, writer, tokens);
-                loggedIn = true;
+            case "search":
+                searchSongs(songRepository, writer, tokens);
                 break;
-            case "login": loginUser(userRepository, writer, tokens);
-                loggedIn = true;
+            case "top":
+                topSongs(songRepository, writer, tokens);
                 break;
-            case "search": searchSongs(songRepository, writer, tokens);
+            case "create-playlist":
+                createPlaylist(playlistRepository, writer, tokens);
                 break;
-            case "top": topSongs(songRepository, writer, tokens);
+            case "add-song-to":
+                addSongToPlaylist(playlistRepository, songRepository, writer, tokens);
                 break;
-            case "create-playlist": createPlaylist(playlistRepository, writer, tokens);
+            case "show-playlist":
+                showPlaylist(playlistRepository, writer, tokens);
                 break;
-            case "add-song-to": addSongToPlaylist(playlistRepository, songRepository, writer, tokens);
+            case "play":
+                playSong(songRepository, writer, tokens);
                 break;
-            case "show-playlist": showPlaylist(playlistRepository, writer, tokens);
+            case "stop":
+                stopSong(songRepository, writer, tokens);
                 break;
-            case "play": playSong(songRepository, writer, tokens);
-                break;
-            case "stop": stopSong(songRepository, writer, tokens);
-                break;
-            default: writer.println("Invalid command: " + Arrays.toString(tokens));
+            default:
+                writer.println("Invalid command: " + Arrays.toString(tokens));
         }
     }
 

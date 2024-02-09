@@ -3,6 +3,7 @@ package bg.sofia.uni.fmi.mjt.client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
@@ -39,7 +40,7 @@ public class SpotifyClient {
                 System.out.println("The server replied <" + reply + ">");
             }
         } catch (IOException e) {
-            throw new RuntimeException("There is a problem with the network communication", e);
+            throw new UncheckedIOException("There is a problem with the network communication", e);
         }
     }
 }

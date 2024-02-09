@@ -12,16 +12,30 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.File;
 import java.io.IOException;
 
-public record Track(String name, String artist, int timesPlayed) {
+import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
+
+public class Track {
+    private final String name;
+    private final String artist;
+    private int timesPlayed;
+    private boolean stopRequested;
     private static final String WAV = ".wav";
     private static final int BYTES = 4096;
+    private static final int PARTS_SIZE = 3;
+
+    public Track(String name, String artist, int timesPlayed) {
+        this.name = name;
+        this.artist = artist;
+        this.timesPlayed = timesPlayed;
+    }
 
     public void play() {
         timesPlayed++;
-        File audioFile = new File(name + "-" + artist + WAV);
+        File audioFile = new File(name + "_" + artist + "_" + timesPlayed + WAV);
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile)) {
             playAudio(audioInputStream);
         } catch (UnsupportedAudioFileException | IOException e) {
+            logException(e);
             throw new InvalidAudioFileException("Error accessing song file", e);
         }
     }
@@ -39,6 +53,7 @@ public record Track(String name, String artist, int timesPlayed) {
             }
             sourceDataLine.drain();
         } catch (LineUnavailableException | IOException e) {
+            logException(e);
             throw new InvalidAudioFileException("Error while playing audio", e);
         } finally {
             stopRequested = false;
@@ -46,7 +61,27 @@ public record Track(String name, String artist, int timesPlayed) {
     }
 
     public void stop() {
-        //TODO: implement
+        stopRequested = true;
     }
 
+    public static Track createTrackFromFileName(String fileName) {
+        String[] parts = fileName.split("_");
+        if (parts.length != PARTS_SIZE) {
+            logException(new InvalidAudioFileException("Invalid file name"));
+            throw new InvalidAudioFileException("Invalid file name");
+        }
+        return new Track(parts[0], parts[1], Integer.parseInt(parts[2]));
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String artist() {
+        return artist;
+    }
+
+    public int timesPlayed() {
+        return timesPlayed;
+    }
 }

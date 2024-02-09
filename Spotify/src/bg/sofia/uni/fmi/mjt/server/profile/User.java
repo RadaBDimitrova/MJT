@@ -16,16 +16,16 @@ public class User {
         this.playlists = new ArrayList<>();
     }
 
-    public boolean authenticate(String password) {
-        return this.password.equals(password);
+    public boolean authenticate(Integer hashCode) {
+        return this.password.hashCode() == hashCode;
     }
 
     public String getEmail() {
         return email;
     }
 
-    public String getPassword() {
-        return password;
+    public Integer getPassword() {
+        return password.hashCode();
     }
 
     public void addPlaylist(Playlist playlist) {
