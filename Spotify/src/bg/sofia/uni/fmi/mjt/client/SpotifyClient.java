@@ -13,6 +13,11 @@ import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 public class SpotifyClient {
 
     private static final int SERVER_PORT = 4444;
+    private static final String PLAY_COMMAND = "play";
+    private static final String STOP_COMMAND = "stop";
+
+    private static final String WAV_PATH = "src/songs/";
+
     public static void main(String[] args) {
 
         try (Socket socket = new Socket("localhost", SERVER_PORT);
@@ -22,6 +27,8 @@ public class SpotifyClient {
 
             Thread.currentThread().setName("Client thread " + socket.getLocalPort());
 
+            AudioClient audioClient = new AudioClient();
+
             while (true) {
                 String message = scanner.nextLine();
 
@@ -29,10 +36,17 @@ public class SpotifyClient {
                     System.out.println("Disconnected from the server");
                     break;
                 }
+                if (message.startsWith(STOP_COMMAND)) {
+                    audioClient.stopSong();
+                }
 
                 writer.println(message);
                 String reply = reader.readLine();
                 System.out.println(reply);
+
+                if (message.startsWith(PLAY_COMMAND)) {
+                    audioClient.playSong(WAV_PATH+"Smooth_Sade.wav");
+                }
             }
 
         } catch (IOException e) {
