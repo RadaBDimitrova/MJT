@@ -15,13 +15,14 @@ import java.io.IOException;
 import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 
 public class Track {
+    public static final String WAV = ".wav";
+    public static final int BYTES = 4096;
+    private static final int PARTS_SIZE = 2;
+    public static final String SONGS_PATH = "src/songs/";
     private final String name;
     private final String artist;
     private int timesPlayed;
     private boolean stopRequested;
-    private static final String WAV = ".wav";
-    private static final int BYTES = 4096;
-    private static final int PARTS_SIZE = 3;
 
     public Track(String name, String artist, int timesPlayed) {
         this.name = name;
@@ -31,12 +32,39 @@ public class Track {
 
     public void play() {
         timesPlayed++;
-        File audioFile = new File(name + "_" + artist + "_" + timesPlayed + WAV);
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile)) {
-            playAudio(audioInputStream);
-        } catch (UnsupportedAudioFileException | IOException e) {
-            logException(e);
-            throw new InvalidAudioFileException("Error accessing song file", e);
+        Thread audioThread = new Thread(() -> {
+            String pathFile = SONGS_PATH + name + "_" + artist + WAV;
+            try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File(pathFile))) {
+                AudioFormat format = audioInputStream.getFormat();
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+
+                try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info)) {
+                    line.open(format);
+                    line.start();
+
+                    byte[] buffer = new byte[BYTES];
+                    int bytesRead;
+
+                    while ((bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
+                        line.write(buffer, 0, bytesRead);
+                    }
+
+                    line.drain();
+                } catch (LineUnavailableException | IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+            } catch (UnsupportedAudioFileException | IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        audioThread.start();
+
+        try {
+            audioThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -70,7 +98,7 @@ public class Track {
             logException(new InvalidAudioFileException("Invalid file name"));
             throw new InvalidAudioFileException("Invalid file name");
         }
-        return new Track(parts[0], parts[1], Integer.parseInt(parts[2]));
+        return new Track(parts[0], parts[1], 0); // TODO modify name of file after playing
     }
 
     public String name() {
@@ -83,5 +111,15 @@ public class Track {
 
     public int timesPlayed() {
         return timesPlayed;
+    }
+
+    public String print() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Track: ").append(name).append(" Artist: ").append(artist);
+        return sb.toString();
+    }
+
+    public String getFileName() {
+        return name + "_" + artist + WAV;
     }
 }

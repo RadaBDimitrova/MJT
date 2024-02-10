@@ -1,6 +1,7 @@
 package bg.sofia.uni.fmi.mjt.server.repositories;
 
 import bg.sofia.uni.fmi.mjt.server.exceptions.PlaylistDoesNotExist;
+import bg.sofia.uni.fmi.mjt.server.exceptions.SongDoesNotExist;
 import bg.sofia.uni.fmi.mjt.server.playlist.Playlist;
 import bg.sofia.uni.fmi.mjt.server.track.Track;
 
@@ -22,12 +23,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 
 public class InMemoryPlaylistRepository implements PlaylistRepository {
-    private static final String PLAYLISTS = "playlists.txt";
+    private static final String PLAYLISTS = "src/playlists/playlists.txt";
     private static final String TXT = ".txt";
     private Map<String, Playlist> playlists = new ConcurrentHashMap<>();
 
+    public InMemoryPlaylistRepository() {
+        loadAllPlaylistsFromFile();
+    }
+
     @Override
     public void addSongToPlaylist(Track song, String playlistName) {
+        if (playlistName == null) {
+            throw new SongDoesNotExist("Playlist name cannot be null");
+        }
+        if (playlists.get(playlistName + TXT).getTracks().containsKey(song.name())) {
+            throw new IllegalArgumentException("Song already exists in playlist");
+        }
         if (playlists.containsKey(playlistName + TXT)) {
             playlists.get(playlistName + TXT).addTrack(song);
             savePlaylistToFile(playlistName);
@@ -54,9 +65,13 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
 
     @Override
     public void createPlaylist(String playlistName) {
+        if (playlists.containsKey(playlistName + TXT)) {
+            throw new IllegalArgumentException("Playlist with name " + playlistName + " already exists");
+        }
         playlists.put(playlistName + TXT, new Playlist(playlistName, new ConcurrentHashMap<>()));
         saveNewPlaylistToPlaylistNamesFile(playlistName);
         savePlaylistToFile(playlistName);
+        loadAllPlaylistsFromFile();
     }
 
     @Override
@@ -135,7 +150,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
 
     @Override
     public Playlist loadPlaylistFromFile(String playlistName) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(playlistName + TXT))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(playlistName))) {
             String name = reader.readLine();
             if (name == null) {
                 PlaylistDoesNotExist exception =

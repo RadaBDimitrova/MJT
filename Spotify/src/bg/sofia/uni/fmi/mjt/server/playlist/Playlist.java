@@ -30,12 +30,11 @@ public class Playlist {
 
     public String getPlaylistInfo() {
         StringBuilder sb = new StringBuilder();
-        sb.append(NAME).append(name).append(System.lineSeparator());
-        sb.append(TRACKS).append(System.lineSeparator());
+        sb.append(TRACKS);
         for (Track track : tracks.values()) {
-            sb.append(TRACK_NAME).append(track.name()).append(System.lineSeparator());
-            sb.append(ARTIST).append(track.artist()).append(System.lineSeparator());
-            sb.append(TIMES_PLAYED).append(track.timesPlayed()).append(System.lineSeparator());
+            sb.append(TRACK_NAME).append(track.name()).append(", ");
+            sb.append(ARTIST).append(track.artist()).append(", ");
+            sb.append(TIMES_PLAYED).append(track.timesPlayed()).append(";");
         }
         return sb.toString();
     }

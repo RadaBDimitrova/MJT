@@ -6,11 +6,9 @@ import java.util.List;
 
 public interface SongRepository {
 
-    Track searchSongByName(String songName);
+    Track searchSongByName(String songName, String artistName);
 
     List<Track> searchSongByKeyword(String songName);
-
-    List<Track> searchSongByArtist(String artist);
 
     List<Track> topNSongsByTimesPlayed(int n);
 }

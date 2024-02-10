@@ -2,6 +2,7 @@ package bg.sofia.uni.fmi.mjt.server.command;
 
 import bg.sofia.uni.fmi.mjt.server.exceptions.PlaylistDoesNotExist;
 import bg.sofia.uni.fmi.mjt.server.exceptions.SongDoesNotExist;
+import bg.sofia.uni.fmi.mjt.server.exceptions.UserAlreadyExistsException;
 import bg.sofia.uni.fmi.mjt.server.repositories.InMemoryPlaylistRepository;
 import bg.sofia.uni.fmi.mjt.server.repositories.InMemorySongRepository;
 import bg.sofia.uni.fmi.mjt.server.repositories.InMemoryUserRepository;
@@ -11,6 +12,8 @@ import bg.sofia.uni.fmi.mjt.server.repositories.UserRepository;
 
 import java.io.PrintWriter;
 import java.util.Arrays;
+
+import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 
 public class CommandManager {
     private static Boolean loggedIn = false;
@@ -44,6 +47,9 @@ public class CommandManager {
                                        InMemorySongRepository songRepository,
                                        PrintWriter writer, String[] tokens) {
         switch (commandType) {
+            case "register", "login":
+                writer.println("You are already logged in");
+                break;
             case "search":
                 searchSongs(songRepository, writer, tokens);
                 break;
@@ -72,10 +78,12 @@ public class CommandManager {
 
     private static void stopSong(InMemorySongRepository songRepository, PrintWriter writer, String[] tokens) {
         try {
-            songRepository.searchSongByName(tokens[1]).stop();
+            songRepository.searchSongByName(tokens[1], tokens[2]).stop();
         } catch (SongDoesNotExist e) {
+            logException(e);
             writer.println("Song with that name does not exist");
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
         writer.println("Song stopped");
@@ -84,11 +92,13 @@ public class CommandManager {
     private static void showPlaylist(InMemoryPlaylistRepository playlistRepository,
                                      PrintWriter writer, String[] tokens) {
         try {
-            String info = playlistRepository.loadPlaylistFromFile(tokens[1]).getPlaylistInfo();
-            writer.println("Playlist: " + tokens[1] + info);
+            String info = playlistRepository.getPlaylist(tokens[1]).getPlaylistInfo();
+            writer.println(tokens[1] + ": " + info);
         } catch (PlaylistDoesNotExist e) {
+            logException(e);
             writer.println("Playlist with that name does not exist");
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
     }
@@ -96,9 +106,11 @@ public class CommandManager {
     private static void registerUser(InMemoryUserRepository userRepository, PrintWriter writer, String[] tokens) {
         try {
             userRepository.createUser(tokens[1], tokens[2]);
-        } catch (IllegalArgumentException e) {
+        } catch (UserAlreadyExistsException e) {
+            logException(e);
             writer.println("User with that email already exists");
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
         writer.println("User registered successfully");
@@ -110,6 +122,7 @@ public class CommandManager {
                 writer.println("Invalid email or password");
             }
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
         writer.println("User logged in successfully");
@@ -119,8 +132,10 @@ public class CommandManager {
         try {
             playlistRepository.createPlaylist(tokens[1]);
         } catch (IllegalArgumentException e) {
+            logException(e);
             writer.println("Playlist with that name already exists");
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
         writer.println("Playlist created successfully");
@@ -129,40 +144,66 @@ public class CommandManager {
     private static void addSongToPlaylist(PlaylistRepository playlistRepository, SongRepository songRepository,
                                           PrintWriter writer, String[] tokens) {
         try {
-            playlistRepository.addSongToPlaylist(songRepository.searchSongByName(tokens[1]), tokens[2]);
+            String[] songTokens = tokens[2].split(",");
+            songTokens[1] = songTokens[1].replace("_", " ");
+            songTokens[0] = songTokens[0].replace("_", " "); //TODO: clean up this code
+            playlistRepository.addSongToPlaylist(songRepository
+                    .searchSongByName(songTokens[0], songTokens[1]), tokens[1]);
+            writer.println("Song added to the playlist successfully");
         } catch (SongDoesNotExist e) {
+            logException(e);
             writer.println("Song with that name does not exist");
         } catch (PlaylistDoesNotExist e) {
+            logException(e);
             writer.println("Playlist with that name does not exist");
         } catch (ArrayIndexOutOfBoundsException e) {
-            writer.println("Invalid command arguments");
+            logException(e);
+            writer.println("Invalid command arguments for add-song-to");
         }
-        writer.println("Song added to the playlist successfully");
     }
 
     private static void searchSongs(SongRepository songRepository, PrintWriter writer, String[] tokens) {
         try {
-            writer.println("Search results: ");
-            songRepository.searchSongByKeyword(tokens[1]).forEach(writer::println);
+            StringBuilder searchResults = new StringBuilder();
+            songRepository.searchSongByKeyword(tokens[1])
+                    .forEach(track -> searchResults.append(track.print()).append(", "));
+            writer.println(searchResults);
+
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         }
     }
 
     private static void topSongs(SongRepository songRepository, PrintWriter writer, String[] tokens) {
         try {
-            writer.println("Top songs: ");
-            songRepository.topNSongsByTimesPlayed(Integer.parseInt(tokens[1])).forEach(writer::println);
+            StringBuilder searchResults = new StringBuilder();
+            songRepository.topNSongsByTimesPlayed(Integer.parseInt(tokens[1]))
+                    .forEach(track -> searchResults.append(track.print()).append(", "));
+            writer.println(searchResults);
         } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
             writer.println("Invalid command arguments");
         } catch (Exception e) {
+            logException(e);
             writer.println("Error getting top songs");
         }
     }
 
     private static void playSong(SongRepository songRepository, PrintWriter writer, String[] tokens) {
         writer.println("Now playing the song");
-        songRepository.searchSongByName(tokens[1]).play();
+        String[] songTokens = tokens[2].split(",");
+        songTokens[1] = songTokens[1].replace("_", " ");
+        songTokens[0] = songTokens[0].replace("_", " ");
+        try {
+            songRepository.searchSongByName(songTokens[0], songTokens[1]).play();
+        } catch (SongDoesNotExist e) {
+            logException(e);
+            writer.println("Song with that name does not exist");
+        } catch (ArrayIndexOutOfBoundsException e) {
+            logException(e);
+            writer.println("Invalid command arguments");
+        }
     }
 
 }

@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,8 +18,8 @@ import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 import static bg.sofia.uni.fmi.mjt.server.track.Track.createTrackFromFileName;
 
 public class InMemorySongRepository implements SongRepository {
-    private static final String SONGS_PATH = "resources/songs/";
-    private Map<Track, String> songs;
+    private static final String SONGS_PATH = "src/songs";
+    private Map<Track, String> songs = new ConcurrentHashMap<>();
 
     public InMemorySongRepository() {
         songs = loadAllSongs();
@@ -41,10 +42,10 @@ public class InMemorySongRepository implements SongRepository {
     }
 
     @Override
-    public Track searchSongByName(String songName) {
+    public Track searchSongByName(String songName, String artistName) {
         try {
             return songs.keySet().stream()
-                    .filter(song -> song.name().equals(songName))
+                    .filter(song -> song.name().equals(songName) && song.artist().equals(artistName))
                     .findFirst()
                     .orElseThrow(() -> new SongDoesNotExist("Song with name " + songName + " does not exist"));
         } catch (Throwable t) {
@@ -60,12 +61,7 @@ public class InMemorySongRepository implements SongRepository {
     }
 
     @Override
-    public List<Track> searchSongByArtist(String artist) {
-        return songs.keySet().stream().filter(song -> song.artist().equals(artist)).toList();
-    }
-
-    @Override
     public List<Track> topNSongsByTimesPlayed(int n) {
-        return songs.keySet().stream().sorted((s1, s2) -> s2.timesPlayed() - s1.timesPlayed()).limit(n).toList();
+        return songs.keySet().stream().sorted(Comparator.comparingInt(Track::timesPlayed).reversed()).limit(n).toList();
     }
 }
