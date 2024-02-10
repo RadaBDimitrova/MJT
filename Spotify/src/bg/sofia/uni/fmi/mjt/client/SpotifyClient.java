@@ -7,6 +7,10 @@ import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.net.Socket;
 import java.util.Scanner;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static bg.sofia.uni.fmi.mjt.server.SpotifyServer.logException;
 
@@ -26,7 +30,9 @@ public class SpotifyClient {
              Scanner scanner = new Scanner(System.in)) {
 
             Thread.currentThread().setName("Client thread " + socket.getLocalPort());
-
+            
+            BlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
+            ExecutorService executorService = Executors.newFixedThreadPool(2);
             AudioClient audioClient = new AudioClient();
 
             while (true) {
@@ -36,16 +42,16 @@ public class SpotifyClient {
                     System.out.println("Disconnected from the server");
                     break;
                 }
-                if (message.startsWith(STOP_COMMAND)) {
-                    audioClient.stopSong();
-                }
+
 
                 writer.println(message);
                 String reply = reader.readLine();
                 System.out.println(reply);
 
                 if (message.startsWith(PLAY_COMMAND)) {
-                    audioClient.playSong(WAV_PATH+"Smooth_Sade.wav");
+                    executorService.execute(() -> audioClient.playSong(WAV_PATH + "Smooth_Sade.wav"));
+                } else if (message.startsWith(STOP_COMMAND)) {
+                    executorService.execute(audioClient::stopSong);
                 }
             }
 

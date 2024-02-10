@@ -58,33 +58,11 @@ public class Track {
                 throw new RuntimeException(e);
             }
         });
-
         audioThread.start();
-
         try {
             audioThread.join();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        }
-    }
-
-    private void playAudio(AudioInputStream audioInputStream) {
-        AudioFormat audioFormat = audioInputStream.getFormat();
-        DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
-        try (SourceDataLine sourceDataLine = (SourceDataLine) AudioSystem.getLine(dataLineInfo)) {
-            sourceDataLine.open(audioFormat);
-            sourceDataLine.start();
-            byte[] buffer = new byte[BYTES];
-            int bytesRead;
-            while (!stopRequested && (bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
-                sourceDataLine.write(buffer, 0, bytesRead);
-            }
-            sourceDataLine.drain();
-        } catch (LineUnavailableException | IOException e) {
-            logException(e);
-            throw new InvalidAudioFileException("Error while playing audio", e);
-        } finally {
-            stopRequested = false;
         }
     }
 
