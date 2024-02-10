@@ -27,17 +27,25 @@ public class AudioClient {
 
             while (playing && (bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
                 sourceDataLine.write(buffer, 0, bytesRead);
+                if(!playing){
+                    throw new RuntimeException("Song stopped");
+                }
             }
 
             sourceDataLine.drain();
-        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException | RuntimeException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (sourceDataLine != null && sourceDataLine.isOpen()) {
+                sourceDataLine.stop();
+                sourceDataLine.close();
+            }
         }
     }
 
     public void stopSong() {
+        playing = false;
         if (sourceDataLine != null && sourceDataLine.isOpen()) {
-            playing = false;
             sourceDataLine.stop();
             sourceDataLine.close();
         }
