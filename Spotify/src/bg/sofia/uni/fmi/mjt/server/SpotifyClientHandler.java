@@ -28,6 +28,12 @@ public class SpotifyClientHandler implements Runnable {
         this.songRepository = songRepository;
     }
 
+    public static String[] getTokens(String inputLine) {
+        String[] tokens = inputLine.split("\\s+|(?<=<)|(?=>)");
+        return Arrays.stream(tokens)
+                .filter(token -> !(token.contains("<") || token.contains(">"))).toArray(String[]::new);
+    }
+
     @Override
     public void run() {
         Thread.currentThread().setName("Client Request Handler for " + clientSocket.getRemoteSocketAddress());
@@ -37,9 +43,7 @@ public class SpotifyClientHandler implements Runnable {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                String[] tokens = inputLine.split("\\s+|(?<=<)|(?=>)"); //TODO: fix this regex and cleanup code
-                tokens = Arrays.stream(tokens)
-                        .filter(token -> !(token.contains("<") || token.contains(">"))).toArray(String[]::new);
+                String[] tokens = getTokens(inputLine);
                 processCommand(userRepository, playlistRepository, songRepository, out, tokens);
             }
 

@@ -34,10 +34,8 @@ public class CommandManager {
         String commandType = tokens[0].toLowerCase();
         if (commandType.equals("register")) {
             registerUser(userRepository, writer, tokens);
-            loggedIn = true;
         } else if (commandType.equals("login")) {
             loginUser(userRepository, writer, tokens);
-            loggedIn = true;
         } else {
             writer.println("You need to be logged in to use this command");
         }
@@ -65,28 +63,9 @@ public class CommandManager {
             case "show-playlist":
                 showPlaylist(playlistRepository, writer, tokens);
                 break;
-            case "play":
-                playSong(songRepository, writer, tokens);
-                break;
-            case "stop":
-                stopSong(songRepository, writer, tokens);
-                break;
             default:
-                writer.println("Invalid command: " + Arrays.toString(tokens));
+                writer.println("Command: " + Arrays.toString(tokens));
         }
-    }
-
-    private static void stopSong(InMemorySongRepository songRepository, PrintWriter writer, String[] tokens) {
-        try {
-            songRepository.searchSongByName(tokens[1], tokens[2]).stop();
-        } catch (SongDoesNotExist e) {
-            logException(e);
-            writer.println("Song with that name does not exist");
-        } catch (ArrayIndexOutOfBoundsException e) {
-            logException(e);
-            writer.println("Invalid command arguments");
-        }
-        writer.println("Song stopped");
     }
 
     private static void showPlaylist(InMemoryPlaylistRepository playlistRepository,
@@ -109,10 +88,13 @@ public class CommandManager {
         } catch (UserAlreadyExistsException e) {
             logException(e);
             writer.println("User with that email already exists");
+            return;
         } catch (ArrayIndexOutOfBoundsException e) {
             logException(e);
             writer.println("Invalid command arguments");
+            return;
         }
+        loggedIn = true;
         writer.println("User registered successfully");
     }
 
@@ -120,11 +102,14 @@ public class CommandManager {
         try {
             if (!userRepository.authenticateUser(tokens[1], tokens[2])) {
                 writer.println("Invalid email or password");
+                return;
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             logException(e);
             writer.println("Invalid command arguments");
+            return;
         }
+        loggedIn = true;
         writer.println("User logged in successfully");
     }
 
@@ -141,12 +126,18 @@ public class CommandManager {
         writer.println("Playlist created successfully");
     }
 
+    public static String[] getSongTokens(String[] tokens) {
+        int length = tokens.length;
+        String[] songTokens = tokens[length - 1].split(",");
+        songTokens[1] = songTokens[1].replace("_", " ");
+        songTokens[0] = songTokens[0].replace("_", " ");
+        return songTokens;
+    }
+
     private static void addSongToPlaylist(PlaylistRepository playlistRepository, SongRepository songRepository,
                                           PrintWriter writer, String[] tokens) {
         try {
-            String[] songTokens = tokens[2].split(",");
-            songTokens[1] = songTokens[1].replace("_", " ");
-            songTokens[0] = songTokens[0].replace("_", " "); //TODO: clean up this code
+            String[] songTokens = getSongTokens(tokens);
             playlistRepository.addSongToPlaylist(songRepository
                     .searchSongByName(songTokens[0], songTokens[1]), tokens[1]);
             writer.println("Song added to the playlist successfully");
@@ -189,22 +180,8 @@ public class CommandManager {
             writer.println("Error getting top songs");
         }
     }
-
-    private static void playSong(SongRepository songRepository, PrintWriter writer, String[] tokens) {
-        writer.println("Now playing the song");
-        String[] songTokens = tokens[2].split(",");
-        songTokens[1] = songTokens[1].replace("_", " ");
-        songTokens[0] = songTokens[0].replace("_", " ");
-        try {
-            songRepository.searchSongByName(songTokens[0], songTokens[1]).play();
-        } catch (SongDoesNotExist e) {
-            logException(e);
-            writer.println("Song with that name does not exist");
-        } catch (ArrayIndexOutOfBoundsException e) {
-            logException(e);
-            writer.println("Invalid command arguments");
-        }
+    public static void setLoggedIn(Boolean value) {
+        loggedIn = value;
     }
-
 }
 

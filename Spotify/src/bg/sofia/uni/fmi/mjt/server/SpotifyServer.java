@@ -9,13 +9,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.Iterator;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,53 +37,26 @@ public class SpotifyServer {
     }
 
     public static void main(String[] args) {
-        ExecutorService executor = Executors.newFixedThreadPool(THREADS_COUNT);
+        try (ExecutorService executor = Executors.newFixedThreadPool(THREADS_COUNT)) {
 
-        Thread.currentThread().setName("Order Server Thread");
+            Thread.currentThread().setName("Order Server Thread");
 
-        try (ServerSocket serverSocket = new ServerSocket(SERVER_PORT)) {
-            Socket clientSocket;
-            while (true) {
-                clientSocket = serverSocket.accept();
-                SpotifyClientHandler clientHandler =
-                        new SpotifyClientHandler(clientSocket, userRepository, playlistRepository, songRepository);
-                executor.execute(clientHandler);
-            }
-
-        } catch (IOException e) {
-            logException(e);
-            throw new RuntimeException("Problem with the server socket", e);
-        }
-    }
-
-    private static void handleSelectedKeys(Selector selector, ByteBuffer buffer) throws IOException {
-        Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-
-        while (keyIterator.hasNext()) {
-            SelectionKey key = keyIterator.next();
-            if (key.isReadable()) {
-                SocketChannel sc = (SocketChannel) key.channel();
-
-                buffer.clear();
-                int req = sc.read(buffer);
-                if (req < 0) {
-                    System.out.println("Client has closed the connection");
-                    sc.close();
-                    continue;
+            try (ServerSocket serverSocket = new ServerSocket(SERVER_PORT)) {
+                Socket clientSocket;
+                while (true) {
+                    clientSocket = serverSocket.accept();
+                    SpotifyClientHandler clientHandler =
+                            new SpotifyClientHandler(clientSocket, userRepository, playlistRepository, songRepository);
+                    executor.execute(clientHandler);
+                    if (clientSocket.isClosed()) {
+                        break;
+                    }
                 }
-                buffer.flip();
-                sc.write(buffer);
 
-            } else if (key.isAcceptable()) {
-                ServerSocketChannel sockChannel = (ServerSocketChannel) key.channel();
-                SocketChannel accept = sockChannel.accept();
-                accept.configureBlocking(false);
-                accept.register(selector, SelectionKey.OP_READ);
-                executorService.submit(new SpotifyClientHandler(accept.socket(),
-                        userRepository, playlistRepository, songRepository));
+            } catch (IOException e) {
+                logException(e);
+                throw new RuntimeException("Problem with the server socket", e);
             }
-            keyIterator.remove();
         }
     }
 }

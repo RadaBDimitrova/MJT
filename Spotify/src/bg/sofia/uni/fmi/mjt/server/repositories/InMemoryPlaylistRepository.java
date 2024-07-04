@@ -45,7 +45,6 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         } else {
             PlaylistDoesNotExist exception =
                     new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
-            logException(exception);
             throw exception;
         }
     }
@@ -56,9 +55,8 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             playlists.get(playlistName + TXT).removeTrack(song);
             savePlaylistToFile(playlistName);
         } else {
-            PlaylistDoesNotExist exception =
-                    new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
-            logException(exception);
+            IllegalArgumentException exception =
+                    new IllegalArgumentException("Playlist with name " + playlistName + " does not exist");
             throw exception;
         }
     }
@@ -97,8 +95,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
                 writer.newLine();
             }
         } catch (IOException e) {
-            logException(e);
-            throw new UncheckedIOException("Error deleting playlist from file of playlist names: " + playlistName, e);
+            throw new PlaylistDoesNotExist("Error deleting playlist from file of playlist names: " + playlistName, e);
         }
     }
 
@@ -107,8 +104,7 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         try {
             Files.delete(path);
         } catch (IOException e) {
-            logException(e);
-            throw new UncheckedIOException("Error deleting file of playlist " + playlistName, e);
+            throw new PlaylistDoesNotExist("Error deleting file of playlist " + playlistName, e);
         }
     }
 
@@ -116,7 +112,6 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PLAYLISTS, true))) {
             writer.write(playlistName + TXT + System.lineSeparator());
         } catch (IOException e) {
-            logException(e);
             throw new UncheckedIOException("Error saving new playlist to file of playlist " + playlistName + TXT, e);
         }
     }
@@ -127,7 +122,6 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
         if (result == null) {
             PlaylistDoesNotExist exception =
                     new PlaylistDoesNotExist("Playlist with name " + playlistName + " does not exist");
-            logException(exception);
             throw exception;
         }
         return result;
@@ -143,7 +137,6 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
                         + track.timesPlayed() + System.lineSeparator());
             }
         } catch (IOException e) {
-            logException(e);
             throw new UncheckedIOException("Error during saving of playlist", e);
         }
     }
@@ -168,7 +161,6 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             playlists.put(name + TXT, playlist);
             return playlist;
         } catch (IOException e) {
-            logException(e);
             throw new PlaylistDoesNotExist("Error loading playlist from file with name: " + playlistName, e);
         }
     }
@@ -190,5 +182,13 @@ public class InMemoryPlaylistRepository implements PlaylistRepository {
             logException(e);
             throw new UncheckedIOException("Error loading playlists from file with playlist names", e);
         }
+    }
+
+    protected Map<String, Playlist> getPlaylists() {
+        return playlists;
+    }
+
+    protected void deleteAllPlaylists() {
+        playlists.clear();
     }
 }

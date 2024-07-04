@@ -43,15 +43,11 @@ public class InMemorySongRepository implements SongRepository {
 
     @Override
     public Track searchSongByName(String songName, String artistName) {
-        try {
-            return songs.keySet().stream()
-                    .filter(song -> song.name().equals(songName) && song.artist().equals(artistName))
-                    .findFirst()
-                    .orElseThrow(() -> new SongDoesNotExist("Song with name " + songName + " does not exist"));
-        } catch (Throwable t) {
-            logException(t);
-            throw t;
-        }
+        return songs.keySet().stream()
+                .filter(song -> song.name().equals(songName) && song.artist().equals(artistName))
+                .findFirst()
+                .orElseThrow(() -> new SongDoesNotExist("Song with name " + songName + " does not exist"));
+
     }
 
     @Override

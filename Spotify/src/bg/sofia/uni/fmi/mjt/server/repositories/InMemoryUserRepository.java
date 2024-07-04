@@ -44,7 +44,6 @@ public class InMemoryUserRepository implements UserRepository {
             loadAllUsersFromFile();
             verifyUserDoesNotExist(email);
         } catch (IllegalArgumentException e) {
-            logException(e);
             throw new UserAlreadyExistsException("User with email " + email + " already exists");
         }
         User newUser = new User(email, password.hashCode());
@@ -53,7 +52,7 @@ public class InMemoryUserRepository implements UserRepository {
         return newUser;
     }
 
-    private synchronized void verifyUserDoesNotExist(String email) {
+    protected synchronized void verifyUserDoesNotExist(String email) {
         if (usersByEmail.containsKey(email)) {
             throw new IllegalArgumentException("User with email " + email + " already exists");
         }
@@ -62,7 +61,7 @@ public class InMemoryUserRepository implements UserRepository {
     @Override
     public synchronized void saveUserToFile(User newUser) {
         try (FileWriter writer = new FileWriter(USERS_FILE, true)) {
-            writer.write(newUser.getEmail() + "," + newUser.getPassword() + System.lineSeparator());
+            writer.write(newUser.email() + "," + newUser.password() + System.lineSeparator());
         } catch (IOException e) {
             logException(e);
             throw new UncheckedIOException("Could not save user to file", e);
@@ -71,7 +70,7 @@ public class InMemoryUserRepository implements UserRepository {
 
     @Override
     public synchronized void deleteUser(User user) {
-        usersByEmail.remove(user.getEmail());
+        usersByEmail.remove(user.email());
         deleteUserFromFile(user);
     }
 
@@ -82,7 +81,7 @@ public class InMemoryUserRepository implements UserRepository {
             List<String> lines = new ArrayList<>();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (!line.contains(user.getEmail())) {
+                if (!line.contains(user.email())) {
                     lines.add(line);
                 }
             }
@@ -93,7 +92,7 @@ public class InMemoryUserRepository implements UserRepository {
             }
         } catch (IOException e) {
             logException(e);
-            throw new UncheckedIOException("Error deleting user from file of users: " + user.getEmail(), e);
+            throw new UncheckedIOException("Error deleting user from file of users: " + user.email(), e);
         }
     }
 
@@ -107,7 +106,7 @@ public class InMemoryUserRepository implements UserRepository {
         loadAllUsersFromFile();
         User user = getUserByEmail(email);
         System.out.println(user);
-        return user != null && user.getPassword().equals(password.hashCode());
+        return user != null && user.password().equals(password.hashCode());
     }
 
 }

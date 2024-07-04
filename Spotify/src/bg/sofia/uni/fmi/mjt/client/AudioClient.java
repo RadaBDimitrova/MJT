@@ -11,8 +11,10 @@ import java.io.File;
 import java.io.IOException;
 
 public class AudioClient {
+    private static final int BYTES = 1024;
     private SourceDataLine sourceDataLine;
     private boolean playing = true;
+
     public void playSong(String songPath) {
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File(songPath))) {
             AudioFormat format = audioInputStream.getFormat();
@@ -22,11 +24,14 @@ public class AudioClient {
             sourceDataLine.open(format);
             sourceDataLine.start();
 
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[BYTES];
             int bytesRead;
 
             while (playing && (bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
                 sourceDataLine.write(buffer, 0, bytesRead);
+                if (!playing) {
+                    break;
+                }
             }
 
             sourceDataLine.drain();
@@ -36,8 +41,8 @@ public class AudioClient {
     }
 
     public void stopSong() {
+        playing = false;
         if (sourceDataLine != null && sourceDataLine.isOpen()) {
-            playing = false;
             sourceDataLine.stop();
             sourceDataLine.close();
         }
